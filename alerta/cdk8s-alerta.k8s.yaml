@@ -1,0 +1,145 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cdk8s-alerta-alerta-c8d0082f
+spec:
+  minReadySeconds: 0
+  progressDeadlineSeconds: 600
+  replicas: 1
+  selector:
+    matchExpressions: []
+    matchLabels:
+      cdk8s.deployment: cdk8s-alerta-alerta-c894c14b
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        cdk8s.deployment: cdk8s-alerta-alerta-c894c14b
+    spec:
+      automountServiceAccountToken: true
+      containers:
+        - env:
+            - name: DATABASE_URL
+              value: postgres://postgres:postgres@alerta-postgres/monitoring
+            - name: AUTH_REQUIRED
+              value: "true"
+            - name: ADMIN_USERS
+              value: admin,brettswift@gmail.com
+            - name: ADMIN_PASSWORD
+              value: bspassword
+            - name: ADMIN_KEY
+              value: demo-key
+            - name: ADMIN_KEY_MAXAGE
+              value: "5000"
+          image: alerta/alerta-web
+          imagePullPolicy: Always
+          name: alerta-web
+          ports:
+            - containerPort: 8080
+          securityContext:
+            privileged: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+          volumeMounts: []
+      dnsConfig:
+        nameservers: []
+        options: []
+        searches: []
+      dnsPolicy: ClusterFirst
+      hostAliases: []
+      initContainers: []
+      securityContext:
+        fsGroupChangePolicy: Always
+        runAsNonRoot: false
+        sysctls: []
+      setHostnameAsFQDN: false
+      volumes: []
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alerta-service
+spec:
+  externalIPs: []
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    cdk8s.deployment: cdk8s-alerta-alerta-c894c14b
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cdk8s-alerta-postgres-c8e827fa
+spec:
+  minReadySeconds: 0
+  progressDeadlineSeconds: 600
+  replicas: 1
+  selector:
+    matchExpressions: []
+    matchLabels:
+      cdk8s.deployment: cdk8s-alerta-postgres-c8325d79
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        cdk8s.deployment: cdk8s-alerta-postgres-c8325d79
+    spec:
+      automountServiceAccountToken: true
+      containers:
+        - env:
+            - name: POSTGRES_DB
+              value: monitoring
+            - name: POSTGRES_PASSWORD
+              value: postgres
+            - name: POSTGRES_USER
+              value: postgres
+          image: postgres
+          imagePullPolicy: Always
+          name: postgres
+          ports:
+            - containerPort: 5432
+          securityContext:
+            privileged: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: pg-data
+      dnsConfig:
+        nameservers: []
+        options: []
+        searches: []
+      dnsPolicy: ClusterFirst
+      hostAliases: []
+      initContainers: []
+      securityContext:
+        fsGroupChangePolicy: Always
+        runAsNonRoot: false
+        sysctls: []
+      setHostnameAsFQDN: false
+      volumes:
+        - emptyDir: {}
+          name: pg-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alerta-postgres
+spec:
+  externalIPs: []
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    cdk8s.deployment: cdk8s-alerta-postgres-c8325d79
+  type: NodePort
